@@ -21,7 +21,8 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const res = await axios.post("http://localhost:3002/login", {
+      // Localhost ko badal kar Live Vercel Backend URL add kiya gaya hai
+      const res = await axios.post("https://github-clone-auvj.vercel.app/login", {
         email,
         password,
       });
