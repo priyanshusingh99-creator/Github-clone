@@ -4,26 +4,26 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const http = require("http");
 const { Server } = require("socket.io");
-const mainRouter = require("./routes/main.router");
+
+const mainRouter = require("../routes/main.router");
 
 const yargs = require("yargs");
 const { hideBin } = require("yargs/helpers");
 
-const { initRepo } = require("./controllers/init");
-const { addRepo } = require("./controllers/add");
-const { commitRepo } = require("./controllers/commit");
-const { pushRepo } = require("./controllers/push");
-const { pullRepo } = require("./controllers/pull");
-const { revertRepo } = require("./controllers/revert");
+const { initRepo } = require("../controllers/init");
+const { addRepo } = require("../controllers/add");
+const { commitRepo } = require("../controllers/commit");
+const { pushRepo } = require("../controllers/push");
+const { pullRepo } = require("../controllers/pull");
+const { revertRepo } = require("../controllers/revert");
 
 dotenv.config();
 
-// 1. Initialize Express App
 const app = express();
 
 app.use(express.json());
 
-// Proper CORS Configuration for Netlify Frontend
+// CORS Config
 app.use(
   cors({
     origin: [
@@ -36,19 +36,36 @@ app.use(
   })
 );
 
-// Database Connection Variable
-const mongoURI = process.env.MONGODB_URI;
+// Serverless-Friendly MongoDB Connection Handler
+let isConnected = false;
 
-if (mongoURI) {
-  mongoose
-    .connect(mongoURI)
-    .then(() => console.log("MongoDB connected!"))
-    .catch((err) => console.error("Unable to connect : ", err));
-} else {
-  console.warn("MONGODB_URI environment variable is missing!");
-}
+const connectToDatabase = async () => {
+  if (isConnected) {
+    return;
+  }
+  const mongoURI = process.env.MONGODB_URI;
+  if (!mongoURI) {
+    console.warn("MONGODB_URI environment variable is missing!");
+    return;
+  }
+  try {
+    const db = await mongoose.connect(mongoURI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    isConnected = db.connections[0].readyState;
+    console.log("MongoDB connected successfully!");
+  } catch (err) {
+    console.error("Unable to connect to MongoDB:", err);
+  }
+};
 
-// Health Check Route (Vercel Test ke liye)
+// Middleware to ensure DB connection on every request (Vercel)
+app.use(async (req, res, next) => {
+  await connectToDatabase();
+  next();
+});
+
+// Health Check Route
 app.get("/", (req, res) => {
   res.send("Backend Server is Running Successfully!");
 });
@@ -140,5 +157,4 @@ if (!process.env.VERCEL && process.argv.length > 2) {
     .help().argv;
 }
 
-// Export App for Vercel Serverless Function
 module.exports = app;
