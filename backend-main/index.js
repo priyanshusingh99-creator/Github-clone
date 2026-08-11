@@ -113,4 +113,4 @@ function startServer() {
   httpServer.listen(port, host, () => {
     console.log(`Server is running at http://${host}:${port}`);
   });
-}
+}module.exports = app;
