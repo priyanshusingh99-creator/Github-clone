@@ -18,22 +18,42 @@ const { revertRepo } = require("./controllers/revert");
 
 dotenv.config();
 
-// 1. Initialize Express App at top-level for Vercel
+// 1. Initialize Express App
 const app = express();
 
 app.use(express.json());
-app.use(cors({ origin: "*" }));
 
-// Database Connection
-const mongoURI =
-  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/githubclone";
+// Proper CORS Configuration for Netlify Frontend
+app.use(
+  cors({
+    origin: [
+      "https://effulgent-douhua-97cfa4.netlify.app",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  })
+);
 
-mongoose
-  .connect(mongoURI)
-  .then(() => console.log("MongoDB connected!"))
-  .catch((err) => console.error("Unable to connect : ", err));
+// Database Connection Variable
+const mongoURI = process.env.MONGODB_URI;
 
-// Routes
+if (mongoURI) {
+  mongoose
+    .connect(mongoURI)
+    .then(() => console.log("MongoDB connected!"))
+    .catch((err) => console.error("Unable to connect : ", err));
+} else {
+  console.warn("MONGODB_URI environment variable is missing!");
+}
+
+// Health Check Route (Vercel Test ke liye)
+app.get("/", (req, res) => {
+  res.send("Backend Server is Running Successfully!");
+});
+
+// Main Routes
 app.use("/", mainRouter);
 
 // Local Server Runner
@@ -70,7 +90,7 @@ function startServer() {
   });
 }
 
-// 2. Run Yargs CLI only locally (bypasses Vercel deployment check)
+// Run Yargs CLI only locally
 if (!process.env.VERCEL && process.argv.length > 2) {
   yargs(hideBin(process.argv))
     .command("start", "Starts a new server", {}, startServer)
@@ -108,7 +128,7 @@ if (!process.env.VERCEL && process.argv.length > 2) {
       "Revert to a specific commit",
       (yargs) => {
         yargs.positional("commitID", {
-          describe: "Comit ID to revert to",
+          describe: "Commit ID to revert to",
           type: "string",
         });
       },
@@ -120,5 +140,5 @@ if (!process.env.VERCEL && process.argv.length > 2) {
     .help().argv;
 }
 
-// 3. Export Express App for Vercel
+// Export App for Vercel Serverless Function
 module.exports = app;
